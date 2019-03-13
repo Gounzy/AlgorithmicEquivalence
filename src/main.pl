@@ -1,85 +1,434 @@
+% pdt_reload:pdt_reload('C:/DocumentsUnamur/GitHub/AlgorithmicEquivalence/src/main.pl').
+   
+% working_directory(_, 'C:/Users/User/ownCloud/GitHub/AlgorithmicEquivalence/src').
+% working_directory(_, 'C:/DocumentsUnamur/GitHub/AlgorithmicEquivalence/src').
+
 :-module(main,[]).
 
 :-use_module(utils). 
-:-use_module(input).
+:-use_module(input). 
 :-use_module(pprint).  
 :-use_module(db).
 
-generalize(Length):- 
-	prepare('test.clp', 'test2.clp', [cl(_, Atoms1)], [cl(_, Atoms2)]),
-	format('Atomes de la clause 1 : '), 
+prepare(File1, File2, OutClauses1, OutClauses2):-
+	working_directory(CWD, CWD), 
+ 	sub_string(CWD, _, _, _ , 'clp'),
+ 	!, 
+	db:init,
+	input:load_file(File1, Clauses1), 
+	input:load_file(File2, Clauses2), 
+	mix_clauses(Clauses1, OutClauses1),
+	mix_clauses(Clauses2, OutClauses2).
+
+prepare(File1, File2, OutClauses1, OutClauses2):-
+ 	working_directory(CWD, CWD), 
+ 	concat(CWD, '/clp', NCWD), 
+ 	working_directory(CWD, NCWD), 
+	db:init,
+	input:load_file(File1, Clauses1),
+	input:load_file(File2, Clauses2),
+	mix_clauses(Clauses1, OutClauses1),
+	mix_clauses(Clauses2, OutClauses2). 
+
+compare_generalizations:- 
+	compare_generalizations_loop(10).
+	
+compare_generalizations_loop(0). 
+compare_generalizations_loop(N):- 
+	N1 is N - 1, 
+	compare_generalizations_loop(N1),    
+	db:generate_clp_atoms(UAtoms1, UAtoms2), 
+	sort(UAtoms1, Atoms1), 
+	sort(UAtoms2, Atoms2), 
+	
+	format('~n~n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*'),  
+	format('~n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*'), 
+	format('~n*-*-*-***ROUND N°~w***-*-*-*-*', [N]), 
+	format('~n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*'), 
+	format('~n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*'),
+	
+	atoms_vars(Atoms1, Vars), 
+	length(Vars, V1), 
+	length(Atoms1, L1), 
+	length(Atoms2, L2), 
+	K is V1 + L1,
+	generalize_for_all_k_up_to(K, Atoms1, Atoms2, 0), 
+	
+	format('~n~n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*'),
+	format('~nAtomes de la clause 1 : '), 
 	pprint:print_list(Atoms1),
 	format('~nAtomes de la clause 2 : '), 
 	pprint:print_list(Atoms2), 
+	format("~nNombre d'atomes: ~w/~w", [L1,L2]), 
+	build_matrices(Atoms1, Atoms2, Matrix, Atoms2, 0, 0),
+	format('~nMatrice de similarité: ~w', [Matrix]),
+	time(mcg(Matrix, Mcg)), 
+	get_mappings(Mcg, MMCG), 
+	variable_to_numeric_mapping(MMCG, MMCGNUM),
+	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
+	format('~nMCG : ~w avec renaming ~w', [MAXGEN, MMCG]).
 	
-	db:fresh_rename(Atoms1, RAtoms1), 
-	db:fresh_rename(Atoms2, RAtoms2), 
+variable_to_numeric_mapping([], []).  
+variable_to_numeric_mapping(['$VAR'(I)-'$VAR'(J)|Vars], [I-J|Nums]):- 
+	variable_to_numeric_mapping(Vars, Nums). 
 	
-	format('~nAtomes de la clause 1 renommés : '), 
-	pprint:print_list(RAtoms1),
-	format('~nAtomes de la clause 2 renommés : '), 
-	pprint:print_list(RAtoms2),
+generalize_for_all_k_up_to(MaxK, _, _, CurrentK):-
+	CurrentK > MaxK.
+generalize_for_all_k_up_to(MaxK, Atoms1, Atoms2, CurrentK):-
+	CurrentK =< MaxK,
+	format('~n*-*-*-*-*-*-*-*-*** K = ~w ***-*-*-*-*-*-*', [CurrentK]),
+	time(generalize_poly(CurrentK, Atoms1, Atoms2, _)),
+	K1 is CurrentK + 1, 
+	generalize_for_all_k_up_to(MaxK, Atoms1, Atoms2, K1). 
+ 
+test_gen:-
+	%Atoms1 = [f('$VAR'(2)), g('$VAR'(1),'$VAR'(0)), h('$VAR'(0),'$VAR'(0),'$VAR'(4)), h('$VAR'(2),'$VAR'(3),'$VAR'(1)), h('$VAR'(4),'$VAR'(0),'$VAR'(2))],
+	%Atoms2 = [g('$VAR'(10),'$VAR'(11)), g('$VAR'(12),'$VAR'(13)), g('$VAR'(14),'$VAR'(14)), i('$VAR'(14),'$VAR'(15)), h('$VAR'(14),'$VAR'(12),'$VAR'(11)), h('$VAR'(11),'$VAR'(16),'$VAR'(12))], 
 	
-	order_atoms(RAtoms1, SAtoms1), 
-	order_atoms(RAtoms2, SAtoms2),
+	Atoms1 = [f('$VAR'(0)), f('$VAR'(1)), f('$VAR'(3)), g('$VAR'(0),'$VAR'(2)), g('$VAR'(1),'$VAR'(0)), g('$VAR'(2),'$VAR'(3)), g('$VAR'(3),'$VAR'(1)), g('$VAR'(3),'$VAR'(2)), i('$VAR'(0),'$VAR'(3)), i('$VAR'(1),'$VAR'(1)), h('$VAR'(0),'$VAR'(2),'$VAR'(0)), h('$VAR'(1),'$VAR'(0),'$VAR'(0)), h('$VAR'(2),'$VAR'(1),'$VAR'(2)), h('$VAR'(3),'$VAR'(3),'$VAR'(3))],
+	Atoms2 = [f('$VAR'(6)), f('$VAR'(7)), g('$VAR'(4),'$VAR'(5)), g('$VAR'(6),'$VAR'(7)), g('$VAR'(7),'$VAR'(5)), g('$VAR'(7),'$VAR'(7)), i('$VAR'(7),'$VAR'(7)), h('$VAR'(4),'$VAR'(4),'$VAR'(4)), h('$VAR'(4),'$VAR'(6),'$VAR'(4)), h('$VAR'(5),'$VAR'(4),'$VAR'(4)), h('$VAR'(6),'$VAR'(5),'$VAR'(7)), h('$VAR'(6),'$VAR'(7),'$VAR'(6)), h('$VAR'(6),'$VAR'(7),'$VAR'(7)), h('$VAR'(7),'$VAR'(6),'$VAR'(4))],
 	
-	format('~nAtomes de la clause 1 triés : '), 
-	pprint:print_list(SAtoms1),
-	format('~nAtomes de la clause 2 triés : '), 
-	pprint:print_list(SAtoms2),
+	generalize_poly(10, Atoms1, Atoms2, Sol), 
+	build_matrices(Atoms1, Atoms2, Matrix, Atoms2, 0, 0), 
+	format('~nAtomes de la clause 1 : '),  
+	pprint:print_list(Atoms1),
+	format('~nAtomes de la clause 2 : '), 
+	pprint:print_list(Atoms2),
+	format('~nMatrice : ~w', [Matrix]),
+	mcg(Matrix, Mcg), 
+	get_mappings(Mcg, MMCG),
+	variable_to_numeric_mapping(MMCG, MMCGNUM),
+	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
+	format('~nMCG : ~w avec renaming ~w', [MAXGEN, MMCG]).  
+ 
+generalize_poly(K, Atoms1, Atoms2, Solution) :- 
+	generalize_poly(K, Atoms1, Atoms2, [], [], Solution, Rho),
+	%format('~n*-*-*-*-*-*Résultat (polynomial)*-*-*-*-*-*'), 
+	format('~nGénéralisation : ~w avec renaming ~w', [Solution, Rho]).
 	
-	build_matrices(SAtoms1, SAtoms2, Matrix, SAtoms2, 0, 0),
-	
-	format('~nMatrice de similarité : '), 
-	format('~w', [Matrix]),
+generalize_poly(K, Atoms1, Atoms2, Phi, S, Solution, RenamingSolution) :-
+	gen(Phi, Atoms1, Atoms2, OldGen), 
+		renaming_with_vars_names(Phi, VPhi),
+		format('~nOldGen: ~w with Phi: ~w', [OldGen, VPhi]),
+	length(OldGen, N),
+		%format('~nN: ~w', [N]), 
+	remove_all(Atoms1, S, NAtoms1),
+		%format('~nNAtoms1: ~w', [NAtoms1]),
+	apply_subst(S, Phi, S2),    
+		%format('~nS2: ~w:', [S2]),
+	remove_all(Atoms2, S2, NAtoms2),
+		%format('~nNAtoms2: ~w', [NAtoms2]), 
+	select(A, NAtoms1, _), 
+	select(A2, NAtoms2, _),  
+		%format('~nA: ~w, A2:~w', [A, A2]),
+	renaming_apart(A, A2, Sigma1), 
+		%format('~nSigma: ~w', [Sigma1]),   
+	atoms_vars(Atoms1, Vars1),   
+		%format('~nVars1: ~w', [Vars1]),	
+	atoms_vars(Atoms2, Vars2),
+		%format('~nVars2: ~w', [Vars2]),	 
+	atom_vars(A, V1), 
+		%format('~nV1: ~w', [V1]),	
+	atom_vars(A2, V2), 
+		%format('~nV1: ~w', [V1]), 
+	remove_all(Vars1, V1, Varss1), 
+		%format('~nVarss1: ~w', [Varss1]), 
+	remove_all(Vars2, V2, Varss2), 
+		%format('~nVarss2: ~w', [Varss2]), 
+	renamings_from(Varss1, Varss2, Rests),
+	member(Rest, Rests), 
+	append(Sigma1, Rest, Sigma),  
+	%compatible(Sigma, Phi2),
+	%	format(' sont compatibles !! '),
+	k_swap_poly(K, Phi, Sigma),  
+		%format('~nPhi2: ~w', [Phi2]),
+	k_extension(Phi, Sigma, Phi3), 
+		renaming_with_vars_names(Phi3, VPhi3),
+		%format('~n K extension : ~w', [VPhi3]),
+	union(Sigma, [], PhiSigma2),  
+		renaming_with_vars_names(Phi3, VPhiSigma2),
+		%format('~nPhiSigma2: ~w', [VPhiSigma2]), 
+	gen(PhiSigma2, Atoms1, Atoms2, NewGen2),
+		%format('~n NewGen2: ~w', [NewGen2]),
+	length(NewGen2, L2), 
+	union(Sigma, Phi3, PhiSigma3), 
+		renaming_with_vars_names(PhiSigma3, VPhiSigma3),
+		%format('~nPhiSigma3: ~w',  [VPhiSigma3]),
+	gen(PhiSigma3, Atoms1, Atoms2, NewGen3),
+		%format('~nNewGen3: ~w', [NewGen3]), 
+	length(NewGen3, L3),
+		%format('~nL3: ~w', [L3]),
+	choose_biggest_cardinality(L2, L3, [PhiSigma2, NewGen2], [PhiSigma3, NewGen3], [PhiSigma, NewGen], LMax), 
+		%format('~nPhiSigma: ~w, Gen: ~w', [PhiSigma3, NewGen]),
+	N < LMax,   
+	!,
+	generalize_poly(K, Atoms1, Atoms2, PhiSigma, NewGen, Solution, RenamingSolution).
 
-	k_swap_stable_naive(1, Matrix, Length, Output), 
+generalize_poly(_, _, _, Phi, S, S, PhiLisible):-
+	renaming_with_vars_names(Phi, PhiLisible).
 	
-	format('~n Résultat :'), 
+remove_all([], _, []). 
+remove_all([X|Xs], RemoveList, Result):- 
+	 member(X, RemoveList), 
+	 !, 
+	 remove_all(Xs, RemoveList, Result). 
+remove_all([X|Xs], RemoveList, [X|Result]):-
+	not(member(X, RemoveList)),
+	!, 
+	remove_all(Xs, RemoveList, Result).  
+	
+choose_biggest_cardinality(C1, C2, _, List2, List2, C2):-  
+	C2 > C1. 
+choose_biggest_cardinality(C1, C2, List1, _, List1, C1):- 
+	C2 =< C1. 
+	
+k_extension([], Phi2, Phi2).  
+k_extension([X|Phi], Phi2, [X|Phi3]):-
+	compatible([X], Phi2),
+	!,
+	k_extension(Phi, Phi2, Phi3).  
+k_extension([_|Phi], Phi2, Phi3):- 
+	k_extension(Phi, Phi2, Phi3). 
+	
+renaming_with_vars_names([], []).	
+renaming_with_vars_names([I-J|Rho], ['$VAR'(I)-'$VAR'(J)|RhoL]):-
+	renaming_with_vars_names(Rho, RhoL). 
+
+gen(Phi, _, _, []):- 
+	is_not_injective(Phi),
+	!. 
+gen(Phi, Atoms1, Atoms2, S2):-
+	apply_subst(Atoms1, Phi, NAtoms1), 
+	common_list(NAtoms1, Atoms2, S),
+	inverse_renaming(Phi, Phi2), 
+	apply_subst(S, Phi2, S2),
+	!.  
+	
+inverse_renaming([], []). 
+inverse_renaming([A-B|Rho], [B-A|RhoI]):-
+	inverse_renaming(Rho, RhoI). 
+
+union(Rho1, Rho2, Rho):-
+	append(Rho1, Rho2, Rho3), 
+	sort(Rho3, Rho). 
+	
+compatible(Rho1, Rho2):- 
+	not(not_compatible(Rho1, Rho2)). 
+	
+not_compatible([I-J|_], Rho2):-
+	member(I-J2, Rho2), 
+	J2 =\= J.  
+not_compatible([I-J|_], Rho2):-
+	member(I2-J, Rho2), 
+	I2 =\= I. 
+not_compatible([_|Rho1], Rho2):-
+	not_compatible(Rho1, Rho2). 
+	
+renamings_from(Vars1, Vars2, RhoOuts):-
+	setof(X, renaming_from(Vars1, Vars2, X), RhoOuts). 
+	
+renaming_from(Vars1, Vars2, RhoOut):-
+	all([Vars1, Vars2], All),
+	transform_to_rho(All, Rho), 
+	!,
+	renaming_from_from(Rho, RhoOut). 
+	
+renaming_from_from([], []). 
+renaming_from_from([_-_|Rho], RhoOut):- 
+	renaming_from_from(Rho, RhoOut).
+renaming_from_from([A-B|Rho], [A-B|RhoOut]):-
+	remove_appearances(A, B, Rho, NRho), 
+	renaming_from_from(NRho, RhoOut).
+	
+remove_appearances(_, _, [], []). 
+remove_appearances(A, B, [A-_|Rho], NRho):- 
+	 !, 
+	 remove_appearances(A, B, Rho, NRho). 
+remove_appearances(A, B, [_-B|Rho], NRho):-
+ 	!, 
+ 	remove_appearances(A, B, Rho, NRho). 
+remove_appearances(A, B, [X-Y|Rho], [X-Y|NRho]):-
+	remove_appearances(A, B, Rho, NRho). 
+
+transform_to_rho([], []). 
+transform_to_rho([['$VAR'(A),'$VAR'(B)]|Lists], [A-B|Rho]):-
+	transform_to_rho(Lists, Rho). 
+	
+try([],[]).
+try([L|Ls],[M|Ms]):-
+    member(M,L),
+    try(Ls,Ms).
+
+all(L,All) :- findall(M, try(L,M), All).  
+	
+atoms_vars([], []).
+atoms_vars([A|Toms], AtomsVars):-
+	atom_vars(A, AtomVars),
+	atoms_vars(Toms, AVS), 
+	append(AtomVars, AVS, AtomsVars1), 
+	sort(AtomsVars1, AtomsVars). 
+	
+atom_vars(Atom, AtomVars):- 
+	Atom =.. [_|Vars],
+	sort(Vars, AtomVars).
+	
+k_swap_poly(K, Phi, Phi2):-
+	sort(Phi, Phi1), 
+	length(Phi1, L1), 
+	common_list(Phi1, Phi2, CommonPhi), 
+	sort(CommonPhi,CP), 
+	length(CP, LC), 
+	K1 is L1 - LC, 
+	K1 =< K. 
+	
+is_not_injective(Rho):- 
+	member(K-J, Rho),
+	member(I-J, Rho),
+	K =\= I. 
+is_not_injective(Rho):- 
+	member(I-J, Rho), 
+	member(I-K, Rho),
+	K =\= J. 
+	
+common_list([], _, []). 
+common_list([X|List], List2, [X|CommonList]):- 
+	select(X, List2, NList2),  
+	common_list(List, NList2, CommonList). 
+common_list([X|List], List2, CommonList):-
+	not(member(X, List2)),
+	common_list(List, List2, CommonList). 
+	
+renaming_apart(Atom1, Atom2, SigmaOut) :-
+	Atom1 =.. [F|Args1], 
+	Atom2 =.. [F|Args2],
+	renaming_apart_args(Args1, Args2, Sigma),
+	compatible(Sigma, Sigma),
+	sort(Sigma, SigmaOut). 
+	
+renaming_apart_args([], [], []). 
+renaming_apart_args(['$VAR'(I)|Args1], ['$VAR'(J)|Args2], [I-J|Sigma]):-
+	I =\= J, 
+	renaming_apart_args(Args1, Args2, Sigma).
+renaming_apart_args(['$VAR'(I)|Args1], ['$VAR'(I)|Args2], Sigma):-
+	renaming_apart_args(Args1, Args2, Sigma). 
+  
+apply_subst(Atoms, [], Atoms). 
+apply_subst([], _, []). 
+apply_subst([A|Toms], Phi, [NA|NAtoms]):-
+	apply_subst_atom(A, Phi, NA), 
+	apply_subst(Toms, Phi, NAtoms). 
+	
+apply_subst_atom(Atom, Phi, NAtom):-
+	Atom =.. [F|Args],
+	apply_subst_args(Args, Phi, NArgs), 
+	NAtom =.. [F|NArgs]. % todo functors
+
+apply_subst_args([], _, []). 
+apply_subst_args(['$VAR'(I)|Args], Phi, ['$VAR'(I)|NArgs]):-
+	not(member(I-_, Phi)),  
+	apply_subst_args(Args, Phi, NArgs).  
+apply_subst_args(['$VAR'(I)|Args], Phi, ['$VAR'(J)|NArgs]):-
+	member(I-J, Phi), 
+	apply_subst_args(Args, Phi, NArgs).  
+
+generalize_files(K):- 
+	prepare('test.clp', 'test2.clp', [cl(_, Atoms1)], [cl(_, Atoms2)]),
+	generalize(K, Atoms1, Atoms2, _).
+	
+mcg(Matrix, MCG):- 
+	msg(Matrix, Output), 
+	longest(Output, MCG). 
+	
+longest([L], L) :-
+   !.
+longest([H|T], H) :- 
+   length(H, N),
+   longest(T, X),
+   length(X, M),
+   N > M,
+   !.
+longest([_|T], X) :- 
+   longest(T, X),
+   !.
+   	
+msg([], []). 
+msg(Matrix, Output) :-
+	setof(O, msg(Matrix, O, []), Output1),
+	sort(Output1, Output). 	
+	
+msg([], O, O):-!. 
+msg([M|Matrix], Output, Prior) :- 
+	append([M], Prior, NPrior), 
+	no_collisions(NPrior), 
+	msg(Matrix, Output, NPrior).  
+msg([_|Matrix], Output, Prior) :- 
+	msg(Matrix, Output, Prior).  
+	
+generalize(K, Matrix, Output) :- 
+	assert(max_encountered_length(0)),
+	update_max_length(0), 
+	%format('Atomes de la clause 1 : '), 
+	%pprint:print_list(Atoms1),
+	%format('~nAtomes de la clause 2 : '), 
+	%pprint:print_list(Atoms2), 
+	
+	injective_generalization(Matrix, Output1), 
+	not(k_swap_unstable_naive(K, Matrix, Output1)), 
+	
+	sort(Output1, Output), 
+	
+	format('~n*-*-*-*-*-*Résultat (exponentiel)*-*-*-*-*-*'), 
 	format('~n~w', [Output]).
 	
-test_variable('$VAR'(N)):- 
-	print(N). 
-	
-k_swap_stable_naive(K, Matrix, MinLength, Output):-
-	injective_generalization(Matrix, MinLength, Output),
-	not(is_k_swap_unstable(K, Output, Matrix, MinLength)). 
-
-injective_generalization(Matrix, MinLength, Output):-
+injective_generalization(Matrix, Output):-
 	all_members(Output, Matrix), 
 	length(Output, Length), 
-	Length >= MinLength,
-	no_collisions(Output).
+	max_encountered_length(MinLength), 
+	Length >= MinLength, 
+	no_collisions(Output),
+	update_max_length(Length). 
+ 
+update_max_length(X):- 
+	max_encountered_length(L), 
+	X > L,
+	!,
+	retractall(max_encountered_length(_)),
+	assert(max_encountered_length(X)). 
+update_max_length(X):- 
+	max_encountered_length(L), 
+	X =< L,
+	!. 
+update_max_length(X):-
+	assert(max_encountered_length(X)). 
 
 all_members([], _).
 all_members([X|Xs], List) :-
 	select(X, List, List2), 
+	no_collisions(Xs),
 	all_members(Xs, List2). 
-
-is_k_swap_unstable(K, Gen1, Matrix, Length):- 
-	injective_generalization(Matrix, Length, Gen2),
-	k_swap(K, Gen1, Gen2, []), 
-	is_strictly_more_specific(Gen2, Gen1).
-	
-k_swap(K, [], _, Swaptable):- sort(Swaptable, ST), length(ST, K). 
-k_swap(K, [Symb/N/M/Mapping|List], Gen2, Swaptable):- 
-	k_swap_mapping(Mapping, Gen2, Swaptable1), 
-	append(Swaptable, Swaptable1, Swaptable2),
-	k_swap(K, List, Gen2, Swaptable2).   
-
-k_swap_mapping([], _, []). 
-k_swap_mapping([A-B|Mapping], [Symb/N/M/Mapping2|List], Swaptable) :- 
-	k_swap_mapping_mapping(A-B, Mapping2, Swaptable1),
-	k_swap_mapping(Mapping, [Symb/N/M/Mapping2|List], Swaptable2),
-	append(Swaptable1, Swaptable2, Swaptable). 
 	 
-k_swap_mapping_mapping(_, [], []). 
-k_swap_mapping_mapping('$VAR'(I)-'$VAR'(J), ['$VAR'(I)-'$VAR'(J2)|Mapping], ['$VAR'(I)-'$VAR'(J)/'$VAR'(I)-'$VAR'(J2)|Swaptable]):- 
-	J =\= J2, 
-	!, 
-	k_swap_mapping_mapping('$VAR'(I)-'$VAR'(J), Mapping, Swaptable). 
-k_swap_mapping_mapping(A, B, [_|Mapping]):-
-	k_swap_mapping_mapping(A, B, Mapping).
+k_swap_unstable_naive(K, Matrix, Gen1):-  
+	injective_generalization(Matrix, Gen2),
+	has_more_atoms(Gen2, Gen1),
+	k_swap(K, Gen1, Gen2),  
+	format('~n Gen2 : ~w is ~w-swap from Gen1 : ~w', [Gen2, K, Gen1]).
+	 
+k_swap(K, Gen1, Gen2):-
+	get_mappings(Gen1, M1), 
+	get_mappings(Gen2, M2), 
+	length(M1, L1), 
+	length(M2, L2),
+	L2 =< K, 
+	common_list(M1, M2, CM), 
+	length(CM, LC), 
+	L3 is L1 - LC,
+	L3 =< K.
+	
+get_mappings([], []).
+get_mappings([_/_/_/Mapping|List], SM) :-
+	get_mappings(List, M2), 
+	append(Mapping, M2, Mappings), 
+	sort(Mappings, SM).
 	
 % G1 is strictly more specific than G2
 is_strictly_more_specific(Gen1, Gen2):-
@@ -87,8 +436,8 @@ is_strictly_more_specific(Gen1, Gen2):-
 	has_more_atoms(Gen1, Gen2). 
 	
 has_same_atoms(_, []).
-has_same_atoms(Gen1, [Symb/N/M/Mapping2|List]) :- 
-	select(Symb/N1/M1/Mapping1, Gen1, NGen1),
+has_same_atoms(Gen1, [Symb/_/_/_|List]) :- 
+	select(Symb/_/_/_, Gen1, NGen1),
 	has_same_atoms(NGen1, List).
 	
 has_more_atoms(Gen1, Gen2) :-
@@ -97,13 +446,13 @@ has_more_atoms(Gen1, Gen2) :-
 	L1 > L2.
 
 no_collisions([]). 
-no_collisions([Symb/N/M/Mapping|List]):- 
+no_collisions([_/N/M/Mapping|List]):- 
 	not_generalized_n_m(N, M, List),
 	injectivity_ok(Mapping, List), 
 	no_collisions(List). 
 	
-not_generalized_n_m(N, M, []). 
-not_generalized_n_m(N, M, [Symb/N1/M1/Mapping|List]):- 
+not_generalized_n_m(_,_, []). 
+not_generalized_n_m(N, M, [_/N1/M1/_|List]):- 
 	N1 =\= N,  
 	M1 =\= M, 
 	not_generalized_n_m(N, M, List). 
@@ -114,8 +463,8 @@ injectivity_ok([A-B|Mapping], List):-
 	injectivity_ok_a_b_mapping(A,B,Mapping), 
 	injectivity_ok(Mapping, List).
 	
-injectivity_ok_a_b(A, B, []). 
-injectivity_ok_a_b(A, B, [Symb/N1/M1/Mapping|List]):- 
+injectivity_ok_a_b(_, _, []). 
+injectivity_ok_a_b(A, B, [_/_/_/Mapping|List]):- 
 	injectivity_ok_a_b_mapping(A, B, Mapping), 
 	injectivity_ok_a_b(A, B, List).  
 
@@ -132,69 +481,57 @@ order_atoms([], []).
 order_atoms(Atoms, NAtoms):- 
 	sort(Atoms, NAtoms).
 
-
-build_matrices(_, [], [], _, _, _).
-build_matrices([], _, [], _, _, _). 
-
+build_matrices([], _, [], _, _, _).
+build_matrices([_|Atoms1], [], MatrixSimilarities, AllAtoms2, N, _):-
+	N1 is N + 1,
+	build_matrices(Atoms1, AllAtoms2, MatrixSimilarities, AllAtoms2, N1, 0). 
 build_matrices([A1|Atoms1], [A2|Atoms2], NMatrixSimilarities, AllAtoms2, N, M):-
 		A1 =..[Symb|_],
 		A2 =..[Symb|_],
-		map_variables(A1, A2, Mapping),
-		append([Symb/N/M/Mapping], MatrixSimilarities, NMatrixSimilarities),
+		map_variables(A1, A2, Mapping1),
+		sort(Mapping1, Mapping),
+		consistent_mapping(Mapping, []),
+		!,
 		M1 is M + 1,
-		build_matrices([A1|Atoms1], Atoms2, MatrixSimilarities, AllAtoms2, N, M1)
-	.
+		build_matrices([A1|Atoms1], Atoms2, MatrixSimilarities, AllAtoms2, N, M1),
+		append([Symb/N/M/Mapping], MatrixSimilarities, NMatrixSimilarities).
+build_matrices(Atoms1, [_|Atoms2], MatrixSimilarities, AllAtoms2, N, M):-
+		M1 is M + 1, 
+		build_matrices(Atoms1, Atoms2, MatrixSimilarities, AllAtoms2, N, M1).
+%build_matrices([A1|Atoms1], [A2|_], MatrixSimilarities, AllAtoms2, N, _):-
+%		A1 =..[Symb1|_],
+%		A2 =..[Symb2|_],
+%		Symb1 @< Symb2,
+%		N1 is N + 1,
+%		build_matrices(Atoms1, AllAtoms2, MatrixSimilarities, AllAtoms2, N1, 0).
+%build_matrices([A1|Atoms1], [A2|Atoms2], MatrixSimilarities, AllAtoms2, N, M):-
+%		A1 =..[Symb1|_],
+%		A2 =..[Symb2|_],
+%		Symb1 @> Symb2,
+%		M1 is M + 1,
+%		build_matrices([A1|Atoms1], Atoms2, MatrixSimilarities, AllAtoms2, N, M1).
 	
-build_matrices([A1|Atoms1], [A2|_], MatrixSimilarities, AllAtoms2, N, _):-
-		A1 =..[Symb1|_],
-		A2 =..[Symb2|_],
-		Symb1 @< Symb2,
-		N1 is N + 1,
-		build_matrices(Atoms1, AllAtoms2, MatrixSimilarities, AllAtoms2, N1, 0)
-	.
+consistent_mapping([], _). 
+consistent_mapping([A-B|Mapping], ConstructedMapping):-
+	not(non_injective_appearance(A-B, ConstructedMapping)),
+	append(ConstructedMapping, [A-B], NConstructedMapping),
+	consistent_mapping(Mapping, NConstructedMapping). 
 	
-build_matrices([A1|Atoms1], [A2|Atoms2], MatrixSimilarities, AllAtoms2, N, M):-
-		A1 =..[Symb1|_],
-		A2 =..[Symb2|_],
-		Symb1 @> Symb2,
-		M1 is M + 1,
-		build_matrices([A1|Atoms1], Atoms2, MatrixSimilarities, AllAtoms2, N, M1)
-	.
-	
+non_injective_appearance('$VAR'(I)-'$VAR'(J), Mapping):- 
+	member('$VAR'(K)-'$VAR'(J), Mapping),
+	K =\= I. 
+non_injective_appearance('$VAR'(I)-'$VAR'(J), Mapping):- 
+	member('$VAR'(I)-'$VAR'(K), Mapping),
+	K =\= J. 
+	 
 map_variables(A1, A2, Mapping):- 
 	A1 =..[_|Args1],
 	A2 =..[_|Args2],
 	zip(Args1, Args2, Mapping). 
 	
 zip([], [], []).
-zip([], [_|_], []).
-zip([_|_], [], []).
 zip([X|Xs], [Y|Ys], [X-Y|XYs]) :-
    zip(Xs, Ys, XYs).
-   
-prepare(File1, File2, OutClauses1, OutClauses2):-
-	working_directory(CWD, CWD), 
- 	sub_string(CWD, _, _, _ , 'clp'),
- 	!, 
-	db:init,
-	input:load_file(File1, Clauses1),
-	format('Loading file 1 done ! ~n'), 
-	input:load_file(File2, Clauses2),
-	format('Loading file 2 done ! ~n'), 
-	mix_clauses(Clauses1, OutClauses1),
-	mix_clauses(Clauses2, OutClauses2).     
-
-prepare(File1, File2, OutClauses1, OutClauses2):-
- 	working_directory(CWD, CWD), 
- 	concat(CWD, '/clp', NCWD), 
- 	working_directory(CWD, NCWD), 
-	db:init,
-	input:load_file(File1, Clauses1),
-	format('Loading file 1 done ! ~n'), 
-	input:load_file(File2, Clauses2),
-	format('Loading file 2 done ! ~n'), 
-	mix_clauses(Clauses1, OutClauses1),
-	mix_clauses(Clauses2, OutClauses2). 
 
 mix_clauses([], []). 
 mix_clauses([C|Cs], [NC|NCs]):- 

@@ -1,1 +1,1 @@
-p_start:-{}, j(B,B,Y), f(B), g(B), g(A), h(X,Y).
+p_start:-{}, f(A, B), g(A), h(B), h(C). 
