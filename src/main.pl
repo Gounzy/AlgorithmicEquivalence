@@ -10,8 +10,6 @@
 :-use_module(pprint).  
 :-use_module(db).
 
-:- dynamic linked/2. 
-
 prepare(File1, File2, OutClauses1, OutClauses2):-
 	working_directory(CWD, CWD), 
  	sub_string(CWD, _, _, _ , 'clp'),
@@ -204,7 +202,6 @@ test_gen:-
 	format('~nMatrice : ~w', [Matrix]),
 	
 	generalize_poly(10, Atoms1, Atoms2, Matrix, Sol), 
-	
 	mcg(Matrix, Mcg), 
 	get_mappings(Mcg, MMCG),
 	variable_to_numeric_mapping(MMCG, MMCGNUM),
@@ -708,7 +705,6 @@ get_int_mappings(Matrix, Mappings):-
 	get_mappings(Matrix, Mappings1), 
 	renaming_with_vars_names(Mappings, Mappings1). 
 
-	
 % G1 is strictly more specific than G2
 is_strictly_more_specific(Gen1, Gen2):-
 	has_same_atoms(Gen1, Gen2),
