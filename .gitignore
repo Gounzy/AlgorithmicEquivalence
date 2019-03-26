@@ -30,3 +30,9 @@ bin/*
 **/*.synctex.gz(busy)
 **/*.pdfsync
 
+.metadata/*
+.metadata/
+.metadata
+External Prolog Files/*
+External Prolog Files/
+External Prolog Files
