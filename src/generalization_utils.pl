@@ -5,15 +5,19 @@
 		apply_subst/3,
 		zip/3,
 		build_matrix/3,
+		extract_matrix_variables/3,
 		inverse_renaming/2,
 		no_collisions/1,
 		is_strictly_more_specific/2,
 		compatible/2,
 		matrix_mappings/2,
+		matrix_mappings2/2,
 		variable_to_numeric_mapping/2,
 		variable_to_numeric_mappings/2,
-		remove_all/3
-] ).
+		remove_all/3,
+		q_sort/2,
+		remove_duplicates/2
+]).
 
 combination(0, _, []) :-
     !.
@@ -72,7 +76,8 @@ apply_subst_args(['$VAR'(I)|Args], Phi, ['$VAR'(J)|NArgs]):-
 	apply_subst_args(Args, Phi, NArgs).
 
 build_matrix(Atoms1, Atoms2, Matrix):-
-	build_matrices(Atoms1, Atoms2, Matrix, _, Atoms2, 0, 0).
+	build_matrices(Atoms1, Atoms2, Matrix, _, Atoms2, 0, 0),
+	!.
 
 build_matrices(Atoms1, Atoms2, MatrixSimilarities, MatrixScores, AllAtoms2, N, M) :-
 	build_matrices(Atoms1, Atoms2, MatrixSimilarities, AllAtoms2, N, M),
@@ -113,6 +118,11 @@ matrix_mappings([_/_/_/Mapping|List], SM) :-
 	matrix_mappings(List, M2),
 	append(Mapping, M2, Mappings),
 	sort(Mappings, SM).
+
+matrix_mappings2([], []).
+matrix_mappings2([_/_/_/Mapping|List], [NumMapping|SM]):-
+	variable_to_numeric_mapping(Mapping, NumMapping),
+	matrix_mappings2(List, SM).
 
 consistent_mapping([], _).
 consistent_mapping([A-B|Mapping], ConstructedMapping):-
@@ -167,6 +177,29 @@ extract_matrix_variables([F/N/M/Mapping|Matrix], Acc1, Variables1, Acc2, Variabl
 extract_vars_mapping([], [], []).
 extract_vars_mapping([A-B|Mapping], [A|Vars1], [B|Vars2]):-
 	extract_vars_mapping(Mapping, Vars1, Vars2).
+
+q_sort(List, Sorted):-
+	q_sort(List, [], Sorted).
+q_sort([],Acc,Acc).
+q_sort([(H-Score)|T],Acc,Sorted):-
+    pivoting(Score,T,L1,L2),
+    q_sort(L1,Acc,Sorted1),
+    q_sort(L2,[(H-Score)|Sorted1],Sorted).
+
+remove_duplicates(List, NewList):-
+	remove_duplicates(List, [], NewList).
+remove_duplicates([], Acc, Acc).
+remove_duplicates([X|Xs], Acc, NewList):-
+	member(X, Acc),
+	!,
+	remove_duplicates(Xs, Acc, NewList).
+remove_duplicates([X|Xs], Acc, NewList):-
+	append(Acc, [X], NAcc),
+	remove_duplicates(Xs, NAcc, NewList).
+
+pivoting(_,[],[],[]).
+pivoting(Score,[(M1-Score1)|T],[(M1-Score1)|L],G):-Score1 =< Score,pivoting(Score,T,L,G).
+pivoting(Score,[(M1-Score1)|T],L,[(M1-Score1)|G]):-Score1 > Score,pivoting(Score,T,L,G).
 
 no_collisions([]).
 no_collisions([_/N/M/Mapping|List]):-

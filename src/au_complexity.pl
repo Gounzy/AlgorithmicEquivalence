@@ -63,7 +63,7 @@ agregate_coeffs([L1-L2|Coeffs], Acc, Coeff):-
 	agregate_coeffs(Coeffs, Acc1, Coeff).
 
 variables_coefficient(Matrix, VariablesCoefficient):-
-	extract_matrix_variables(Matrix, Variables1, Variables2),
+  extract_matrix_variables(Matrix, Variables1, Variables2),
 	!,
 	length(Variables1, L1),
 	length(Variables2, L2),

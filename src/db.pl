@@ -1,13 +1,15 @@
 :-module(db,[init/0, generate_clp_atoms/2, different_vars/1, increment_var_counter/0, set_var_counter/1, fresh_rename/2, fresh_rename/3, get_vars/2,construct_final_renaming/2,replace/3, class_1/2, class_2/2, class_3/2, class_4/2,class_5/2, class_6/2]).
 
 :-use_module(utils).
+:-use_module(au_complexity).
+:-use_module(generalization_utils).
 
 :-dynamic var_counter/1.
 :-dynamic pred_counter/1.
 
 different_vars(10).
 possible_predicates([f/1, g/2, h/3, i/4, m/4, n/3, o/2, p/1]).
-few_predicates([f/1, g/2, h/3, i/2]).
+few_predicates([g/2, f/1, h/3]).
 
 %%%%
 init:-
@@ -41,17 +43,46 @@ generate_clp_atoms(Atoms1, Atoms2) :-
 	associate_vars(Rs2, X, RAtoms2),
 	fresh_rename(RAtoms2, Atoms2).
 
-generate_few_atoms(Atoms1, Atoms2):-
+generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMin, CoeffMax, VCMin, VCMax):-
 	few_predicates(Ps),
-	R1 is random(20), % # preds clause 1
-	R2 is random(20), % # preds clause 2
-	take_random(R1, Ps, Rs1),
-	take_random(R2, Ps, Rs2),
+	R1 is random(NPredMax), % # preds clause 1
+	R2 is random(NPredMax), % # preds clause 2
+	R11 is max(R1, NPredMin),
+	R22 is max(R2, NPredMin),
+	take_random(R11, Ps, Rs1),
+	take_random(R22, Ps, Rs2),
 	init,
-	set_var_counter(4),
-	associate_vars(Rs1, 4, Atoms1),
-	associate_vars(Rs2, 4, RAtoms2),
-	fresh_rename(RAtoms2, Atoms2).
+	Vars is random(MaxVars - MinVars),
+	Varss is Vars + MinVars,
+	set_var_counter(Varss),
+	associate_vars(Rs1, Varss, LAtoms1),
+	associate_vars(Rs2, Varss, LAtoms2),
+	sort(LAtoms1, Atoms1),
+	sort(LAtoms2, RAtoms2),
+	fresh_rename(RAtoms2, Atoms2),
+	anti_unification_coefficient(Atoms1, Atoms2, Coeff),
+	%format('~n Coeff: ~w', [Coeff]),
+	Coeff =< CoeffMax,
+	Coeff >= CoeffMin,
+	build_matrix(Atoms1, Atoms2, Matrix),
+	variables_coefficient(Matrix, VC),
+	%format('~n VC: ~w', [VC]),
+	VC =< VCMax,
+	VC >= VCMin,
+	!.
+generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMin, CoeffMax, VCMin, VCMax):-generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMin, CoeffMax, VCMin, VCMax).
+
+class(C, Atoms1, Atoms2):-
+	(C == 1 -> generate_few_atoms(Atoms1, Atoms2, 5, 15, 1, 10, 1, 41472, 1, 60480) ; true),
+	(C == 2 -> generate_few_atoms(Atoms1, Atoms2, 10, 15, 6, 10, 41473, 207360, 60481, 362880) ; true),
+	(C == 3 -> generate_few_atoms(Atoms1, Atoms2, 10, 15, 9, 15, 207361, 9072000, 362881, 3628799) ; true),
+	(C == 4 -> generate_few_atoms(Atoms1, Atoms2, 15, 20, 9, 15, 9072001, 17418240, 3628800, 17418240) ; true),
+	(C == 5 -> generate_few_atoms(Atoms1, Atoms2, 15, 20, 9, 15, 17418241, 174182400, 17418241, 174182400) ; true),
+	(C == 6 -> generate_few_atoms(Atoms1, Atoms2, 15, 22, 9, 18, 174182401, 1741824000, 174182401, 1741824000) ; true).
+
+class_0(Atoms1, Atoms2):-
+	Atoms1 = [f('$VAR'(8), '$VAR'(8)),f('$VAR'(6), '$VAR'(8)),f('$VAR'(4), '$VAR'(8)),f('$VAR'(10), '$VAR'(8))],
+	Atoms2 = [f('$VAR'(1), '$VAR'(1)),f('$VAR'(3), '$VAR'(2)),f('$VAR'(5), '$VAR'(2)),f('$VAR'(7), '$VAR'(2))].
 
 class_1(Atoms1, Atoms2):-
 	Atoms1 = [f('$VAR'(8)),f('$VAR'(6)),i('$VAR'(4),'$VAR'(10))],

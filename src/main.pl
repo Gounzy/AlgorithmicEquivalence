@@ -35,141 +35,55 @@ prepare(File1, File2, OutClauses1, OutClauses2):-
 	mix_clauses(Clauses1, OutClauses1),
 	mix_clauses(Clauses2, OutClauses2).
 
-test_class_1(K):-
-	format('~n --------------Class 1 : '),
-	db:class_4(Atoms1, Atoms2),
+call_time(G,T) :-
+   statistics(runtime,[T0|_]),
+   G,
+   statistics(runtime,[T1|_]),
+   T is T1 - T0.
+
+test_class(C, K, W, N):-
+	test_class(C, K, W, N, _, _).
+
+test_class(C, K, W, N, TR, AR):-
+	test_class(C, K, W, N, [], [], TR, AR).
+
+test_class(C, K, W, 0, CTR, CAR, CTR, CAR):-
+	format('~n --------------Class ~w, K = ~w, W = ~w : ', [C, K, W]),
+	format('~n Time Results : ~w', [CTR]),
+	format('~n Accuracy Results : ~w', [CAR]),
+	mean_time_results(CTR, MCTR),
+	format('~n Mean time results: ~w', [MCTR]),
+	sum(CAR,S), length(CAR,L), MCAR is S/L,
+	format('~n Mean accuracy results: ~w', [MCAR]),
+	format('~n').
+test_class(C, K, W, N, CurrentTimeResults, CurrentAccuracyResults, TimeResults, AccuracyResults):-
+	N > 0,
+	set_prolog_stack(global, limit(100 000 000 000)),
+	db:class(C, Atoms1, Atoms2),
+	%format('~n--- ATOMS1 : ~w ~n--- ATOMS 2 : ~w', [Atoms1, Atoms2]),
 	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalization(K, Matrix, [], Sol)),
-	format('~n Généralisation : ~w', [Sol]),
+	%format('~n---Matrix : ~w', [Matrix]),
+	call_time(generalization(K, W, Matrix, [], Sol), TimeGen),
+	%format('~n Abstraction : ~w', [Sol]),
 	length(Atoms1, L1),
 	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
+	call_time(mcg(Matrix, Mcg), TimeMcg),
 	matrix_mappings(Mcg, MMCG),variable_to_numeric_mapping(MMCG, MMCGNUM),
 	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(mcg_exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(mcg_exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
-test_class_2(D,K):-
-	retractall(max_distance(_)),
-	assert(max_distance(D)),
-	format('~n --------------Class 2 : '),
-	db:class_2(Atoms1, Atoms2),
-	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalize_poly(CurrentK, Atoms1, Atoms2, Matrix, Sol)),
-	length(Atoms1, L1),
-	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
-	get_mappings(Mcg, MMCG),
-	variable_to_numeric_mapping(MMCG, MMCGNUM),
-	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
-test_class_3(D,K):-
-	retractall(max_distance(_)),
-	assert(max_distance(D)),
-	format('~n --------------Class 1 : '),
-	db:class_3(Atoms1, Atoms2),
-	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalize_poly(CurrentK, Atoms1, Atoms2, Matrix, Sol)),
-	length(Atoms1, L1),
-	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
-	get_mappings(Mcg, MMCG),variable_to_numeric_mapping(MMCG, MMCGNUM),
-	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
+	%format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
+	%call_time(mcg_exhaustive_renamings3(Atoms1, Atoms2, McgVars, McgVarsMapping), TimeMcgV),
+	%format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
+	accuracy(Sol, MAXGEN, Accuracy),
+	%format('~nAccuracy: ~w ', [Accuracy]),
+	!,
+	N1 is N - 1,
+	test_class(C, K, W, N1, [TimeGen-TimeMcg|CurrentTimeResults], [Accuracy|CurrentAccuracyResults], TimeResults, AccuracyResults).
 
-test_class_4(D,K):-
-	retractall(max_distance(_)),
-	assert(max_distance(D)),
-	format('~n --------------Class 1 : '),
-	db:class_4(Atoms1, Atoms2),
-	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalize_poly(CurrentK, Atoms1, Atoms2, Matrix, Sol)),
-	length(Atoms1, L1),
-	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
-	get_mappings(Mcg, MMCG),variable_to_numeric_mapping(MMCG, MMCGNUM),
-	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
-
-test_class_5(D,K):-
-	retractall(max_distance(_)),
-	assert(max_distance(D)),
-	format('~n --------------Class 1 : '),
-	db:class_1(Atoms1, Atoms2),
-	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalize_poly(CurrentK, Atoms1, Atoms2, Matrix, Sol)),
-	length(Atoms1, L1),
-	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
-	get_mappings(Mcg, MMCG),variable_to_numeric_mapping(MMCG, MMCGNUM),
-	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
-
-test_class_5(D,K):-
-	retractall(max_distance(_)),
-	assert(max_distance(D)),
-	format('~n --------------Class 1 : '),
-	db:class_1(Atoms1, Atoms2),
-	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalize_poly(CurrentK, Atoms1, Atoms2, Matrix, Sol)),
-	length(Atoms1, L1),
-	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
-	get_mappings(Mcg, MMCG),variable_to_numeric_mapping(MMCG, MMCGNUM),
-	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
-
-test_class_6(D,K):-
-	retractall(max_distance(_)),
-	assert(max_distance(D)),
-	format('~n --------------Class 1 : '),
-	db:class_1(Atoms1, Atoms2),
-	build_matrix(Atoms1, Atoms2, Matrix),
-	time(generalize_poly(CurrentK, Atoms1, Atoms2, Matrix, Sol)),
-	length(Atoms1, L1),
-	length(Atoms2, L2),
-	time(mcg(Matrix, Mcg)),
-	get_mappings(Mcg, MMCG),variable_to_numeric_mapping(MMCG, MMCGNUM),
-	gen(MMCGNUM, Atoms1, Atoms2, MAXGEN),
-	format('~nMCG: ~w avec renaming ~w', [MAXGEN, MMCGNUM]),
-	(L1 =< L2 -> time(exhaustive_renamings(Atoms1, Atoms2, McgVars, McgVarsMapping)) ; time(exhaustive_renamings(Atoms2, Atoms1, McgVars, McgVarsMapping))),
-	format('~nMCG (vars) : ~w avec renaming ~w', [McgVars, McgVarsMapping]),
-	accuracy(Sol, McgVars, Accuracy),
-	format('~nAccuracy: ~w ', [Accuracy]).
-
-compare_generalizations:-
-	compare_generalizations_loop(100, [], Accuracies),
-	format('~n Accuracies: ~w', [Accuracies]),
-	sum(Accuracies,S), length(Accuracies,L), M is S/L,
-	format('~n Accuracy: ~w', [M]).
-
-sum(Xs, S):- sum(Xs, 0, S).
-sum([], Acc, Acc).
-sum([X|Xs], Acc, S):-
-	NAcc is Acc + X,
-	sum(Xs, NAcc, S).
+mean_time_results(TimeResults, Mean1-Mean2):-
+	firsts(TimeResults, Firsts),
+	seconds(TimeResults, Seconds),
+	sum(Firsts,S1), length(Firsts,L1), Mean1 is S1/L1,
+	sum(Seconds,S2), length(Firsts,L2), Mean2 is S2/L2.
 
 accuracy(_, [], 1):-!.
 accuracy(Gen1, Gen2, Accuracy):-
@@ -261,15 +175,7 @@ take(N, [X|Xs], [X|Ys]) :- M is N-1, take(M, Xs, Ys).
 sort_scores(Matrix, MatrixSorted):-
 	q_sort(Matrix,[],MatrixSorted).
 
-q_sort([],Acc,Acc).
-q_sort([(H-Score)|T],Acc,Sorted):-
-    pivoting(Score,T,L1,L2),
-    q_sort(L1,Acc,Sorted1),
-    q_sort(L2,[(H-Score)|Sorted1],Sorted).
 
-pivoting(_,[],[],[]).
-pivoting(Score,[(M1-Score1)|T],[(M1-Score1)|L],G):-Score1 =< Score,pivoting(Score,T,L,G).
-pivoting(Score,[(M1-Score1)|T],L,[(M1-Score1)|G]):-Score1 > Score,pivoting(Score,T,L,G).
 
 extract_corresponding_atoms(_, [], []).
 extract_corresponding_atoms(Atoms, [_/N/_/_|Matrix], [O|Out]):-
