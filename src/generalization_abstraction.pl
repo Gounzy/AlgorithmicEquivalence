@@ -199,11 +199,11 @@ get_all_compatibles(Phi, [_|Ss], Acc, Comp):-
 
 omega_max(Phi, W, R):-
   map_quality(Phi, PhiQuality),
-  only_maxima(PhiQuality, W, R).
+  (W == 1 -> only_maxima_1(PhiQuality, R) ; only_maxima(PhiQuality, W, R)).
 
 omega_min(Phi, W, R):-
   map_quality(Phi, PhiQuality),
-  only_minima(PhiQuality, W, R).
+  (W == 1 -> only_minima_1(PhiQuality, R) ; only_minima(PhiQuality, W, R)).
 
 map_quality([], []).
 map_quality([Phi|Ps], [Phi-Quality|Qs]):-

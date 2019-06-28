@@ -49,12 +49,15 @@ test_class(C, K, W, N, TR, AR):-
 
 test_class(C, K, W, 0, CTR, CAR, CTR, CAR):-
 	format('~n --------------Class ~w, K = ~w, W = ~w : ', [C, K, W]),
-	format('~n Time Results : ~w', [CTR]),
-	format('~n Accuracy Results : ~w', [CAR]),
+	%format('~n Time Results : ~w', [CTR]),
+	%format('~n Accuracy Results : ~w', [CAR]),
 	mean_time_results(CTR, MCTR),
 	format('~n Mean time results: ~w', [MCTR]),
 	sum(CAR,S), length(CAR,L), MCAR is S/L,
 	format('~n Mean accuracy results: ~w', [MCAR]),
+	count_ones(CAR, Ones),
+	NOnes is Ones / L,
+	format('~n Proportion of MCG found: ~w', [NOnes]),
 	format('~n').
 test_class(C, K, W, N, CurrentTimeResults, CurrentAccuracyResults, TimeResults, AccuracyResults):-
 	N > 0,
@@ -84,6 +87,16 @@ mean_time_results(TimeResults, Mean1-Mean2):-
 	seconds(TimeResults, Seconds),
 	sum(Firsts,S1), length(Firsts,L1), Mean1 is S1/L1,
 	sum(Seconds,S2), length(Firsts,L2), Mean2 is S2/L2.
+
+count_ones(List, NOnes):-
+	count_ones(List, 0, NOnes).
+count_ones([], NOnes, NOnes).
+count_ones([1|Ls], Acc, NOnes):-
+	!,
+	NAcc is Acc + 1,
+	count_ones(Ls, NAcc, NOnes).
+count_ones([_|Ls], Acc, NOnes):-
+	count_ones(Ls, Acc, NOnes).
 
 accuracy(_, [], 1):-!.
 accuracy(Gen1, Gen2, Accuracy):-

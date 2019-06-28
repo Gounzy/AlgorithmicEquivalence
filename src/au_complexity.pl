@@ -1,5 +1,6 @@
 :-module(au_complexity, [
     anti_unification_coefficient/3,
+    variables_coefficient/3,
     variables_coefficient/2
 ]).
 
@@ -58,10 +59,16 @@ agregate_coeffs(Coeffs, Coeff):-
 	agregate_coeffs(Coeffs, 1, Coeff).
 agregate_coeffs([], Coeff, Coeff).
 agregate_coeffs([L1-L2|Coeffs], Acc, Coeff):-
-	fact_comb(L1, L2, FC),
+  LMAX is max(L1,L2),
+  LMIN is min(L1,L2),
+  LMAX2 is LMAX + LMIN,
+	fact_comb(LMIN, LMAX2, FC),
 	Acc1 is Acc * FC,
 	agregate_coeffs(Coeffs, Acc1, Coeff).
 
+variables_coefficient(Atoms1, Atoms2, VariablesCoefficient):-
+  build_matrix(Atoms1, Atoms2, Matrix),
+  variables_coefficient(Matrix, VariablesCoefficient).
 variables_coefficient(Matrix, VariablesCoefficient):-
   extract_matrix_variables(Matrix, Variables1, Variables2),
 	!,
