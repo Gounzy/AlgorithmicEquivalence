@@ -73,10 +73,10 @@ generalization1(K, W, TotalMatrix, CurrentPhi, Generalization) :-
   !.
 
 main_loop([], _, _, _, _, CurrentPhi, CurrentPhi).
-main_loop([A|AvailableMatrix], WholeAvailableMatrix, K, W, TotalMatrix, CurrentPhi, Generalization):-
+main_loop([A|_], WholeAvailableMatrix, K, W, TotalMatrix, CurrentPhi, Generalization):-
   select(A, WholeAvailableMatrix, S),
   %format('~n A : ~w', [A]),
-  enforce(A, CurrentPhi, EnforcedPhi, PhiS),
+  enforce(A, CurrentPhi, _, PhiS),
   %format('~nEnforcedPhi : ~w', [EnforcedPhi]),
   %format('~nPhiS: ~w', [PhiS]),
   while_1(CurrentPhi, WholeAvailableMatrix, A, [], PhiS, S, K, W, [], [], NPhiG, NPhiS),

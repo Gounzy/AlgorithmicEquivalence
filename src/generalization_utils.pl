@@ -70,9 +70,13 @@ apply_subst_atom(Atom, Phi, NAtom):-
 apply_subst_args([], _, []).
 apply_subst_args(['$VAR'(I)|Args], Phi, ['$VAR'(I)|NArgs]):-
 	not(member(I-_, Phi)),
+	!,
 	apply_subst_args(Args, Phi, NArgs).
 apply_subst_args(['$VAR'(I)|Args], Phi, ['$VAR'(J)|NArgs]):-
 	member(I-J, Phi),
+	!,
+	apply_subst_args(Args, Phi, NArgs).
+apply_subst_args([_|Args], Phi, NArgs):-
 	apply_subst_args(Args, Phi, NArgs).
 
 build_matrix(Atoms1, Atoms2, Matrix):-
@@ -109,7 +113,7 @@ compute_scores([M|Matrix], AllMatrix, [Score|ScoresMatrix]):-
 	matrix_score(M, AllMatrix, Score),
 	compute_scores(Matrix, AllMatrix, ScoresMatrix).
 
-matrix_score(Symb/N/M/Rho, AllMatrix, Score):-
+matrix_score(_/N/M/_, _, Score):-
 	Calc is N - M,
 	Score is abs(Calc) + 1.
 
@@ -136,6 +140,20 @@ non_injective_appearance('$VAR'(I)-'$VAR'(J), Mapping):-
 non_injective_appearance('$VAR'(I)-'$VAR'(J), Mapping):-
 	member('$VAR'(I)-'$VAR'(K), Mapping),
 	K =\= J.
+non_injective_appearance(A1-A2, _):-
+	atom(A1),
+	atom(A2),
+	atom_number(A1, N),
+	atom_number(A2, M),
+	number(N),
+	number(M),
+	N =\= M.
+non_injective_appearance(N-M, _):-
+	atom(N),
+	not(atom(M)).
+non_injective_appearance(N-M, _):-
+	atom(M),
+	not(atom(N)).
 
 map_variables(A1, A2, Mapping):-
 	A1 =..[_|Args1],
@@ -168,7 +186,7 @@ extract_matrix_variables(Matrix, Variables1, Variables2):-
 extract_matrix_variables([], Acc1, Acc1Sorted, Acc2, Acc2Sorted):-
 	sort(Acc1, Acc1Sorted),
 	sort(Acc2, Acc2Sorted).
-extract_matrix_variables([F/N/M/Mapping|Matrix], Acc1, Variables1, Acc2, Variables2):-
+extract_matrix_variables([_/_/_/Mapping|Matrix], Acc1, Variables1, Acc2, Variables2):-
 	extract_vars_mapping(Mapping, NVars1, NVars2),
 	append(Acc1, NVars1, NAcc1),
 	append(Acc2, NVars2, NAcc2),
@@ -263,7 +281,7 @@ not_compatible([I-J|_], Rho2):-
 not_compatible([_|Rho1], Rho2):-
 	not_compatible(Rho1, Rho2).
 
-print_graph(Atoms1, Atoms2, [_|Openings]):-
+print_graph(Atoms1, _, [_|Openings]):-
 	length(Atoms1, L1),
 
 	format('<?xml version="1.0" encoding="UTF-8"?>
@@ -349,7 +367,7 @@ line_csv_matrix(A, [A2|Atoms], [Sigma|SigmaOut]):-
  	variable_to_numeric_mapping(Rho, Sigma),
  	format(';~w', [Rho]),
  	line_csv_matrix(A, Atoms, SigmaOut).
-line_csv_matrix(A, [A2|Atoms], SigmaOut):-
+line_csv_matrix(A, [_|Atoms], SigmaOut):-
 	format(';[]'),
 	line_csv_matrix(A, Atoms, SigmaOut).
 

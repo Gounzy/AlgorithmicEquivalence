@@ -1,21 +1,46 @@
-:-module(db,[init/0, generate_clp_atoms/2, different_vars/1, increment_var_counter/0, set_var_counter/1, fresh_rename/2, fresh_rename/3, get_vars/2,construct_final_renaming/2,replace/3, class_1/2, class_2/2, class_3/2, class_4/2,class_5/2, class_6/2]).
+:-module(db,[
+	init/0,
+	generate_clp_atoms/2,
+	generate_clp_preds/2,
+	different_vars/1,
+	increment_var_counter/0,
+	set_var_counter/1,
+	set_var_counter_to_next/0,
+	set_next_var_counter/1,
+	fresh_rename/2,
+	fresh_rename/3,
+	get_vars/2,
+	construct_final_renaming/2,
+	replace/3,
+	class_1/2,
+	class_2/2,
+	class_3/2,
+	class_4/2,
+	class_5/2,
+	class_6/2
+]).
 
 :-use_module(utils).
 :-use_module(au_complexity).
 :-use_module(generalization_utils).
 
 :-dynamic var_counter/1.
+:-dynamic next_var_counter/1.
 :-dynamic pred_counter/1.
 
-different_vars(10).
+%different_vars(10).
+different_vars(6).
 possible_predicates([f/1, g/2, h/3, i/4, m/4, n/3, o/2, p/1]).
 few_predicates([g/2, f/1, h/3]).
+max_nb_clauses(6).
 
 %%%%
 init:-
 	retractall(var_counter(_)),
+	retractall(next_var_counter(_)),
 	different_vars(X),
 	assert(var_counter(X)), % Do not touch
+	assert(next_var_counter(X)), % Do not touch
 	retractall(pred_counter(_)),
 	assert(pred_counter(1)).
 
@@ -29,11 +54,52 @@ set_var_counter(Y):-
 	retractall(var_counter(_)),
 	assert(var_counter(Y)).
 
+set_next_var_counter(Y):-
+	retractall(next_var_counter(_)),
+	assert(next_var_counter(Y)).
+
+set_var_counter_to_next:-
+	next_var_counter(Y),
+	set_var_counter(Y).
+
 %%%
+generate_clp_preds(Pred1, Pred2):-
+	max_nb_clauses(X),
+	NC1 is max(1,random(X)),
+	NC2 is max(1,random(X)),
+	generate_clp_clauses(NC1, NC2, Clauses1, Clauses2),
+	get_vars(Clauses1, Vars1),
+	get_vars(Clauses2, Vars2),
+	length(Vars1, L1),
+	length(Vars2, L2),
+	R1 is max(1,random(L1)),
+	R2 is max(1,random(L2)),
+	remove_random(R1, Vars1, HeadVars1),
+	remove_random(R2, Vars2, HeadVars2),
+	P1 =..[p|HeadVars1],
+	P2 =..[p|HeadVars2],
+	zip_clauses(P1, Clauses1, Pred1),
+	zip_clauses(P2, Clauses2, Pred2).
+
+zip_clauses(_, [], []).
+zip_clauses(H, [B|Bs], [cl(H,[],B)|Clauses]):-
+	zip_clauses(H,Bs,Clauses).
+
+generate_clp_clauses(0,0, [], []):-!.
+generate_clp_clauses(NC1, NC2, Clauses1, Clauses2):-
+	NC11 is NC1 - 1,
+	NC21 is NC2 - 1,
+	NNC1 is max(NC11, 0),
+	NNC2 is max(NC21, 0),
+	generate_clp_clauses(NNC1, NNC2, NClauses1, NClauses2),
+	generate_clp_atoms(Atoms1, Atoms2),
+	(NC1 > 0 -> Clauses1 = [Atoms1|NClauses1] ; Clauses1 = NClauses1),
+	(NC2 > 0 -> Clauses2 = [Atoms2|NClauses2] ; Clauses2 = NClauses2).
+
 generate_clp_atoms(Atoms1, Atoms2) :-
 	few_predicates(Ps),
-	R1 is random(20), % # preds clause 1
-	R2 is random(20), % # preds clause 2
+	R1 is max(1,random(10)), % # preds clause 1
+	R2 is max(1,random(10)), % # preds clause 2
 	take_random(R1, Ps, Rs1),
 	take_random(R2, Ps, Rs2),
 	init,
@@ -45,8 +111,8 @@ generate_clp_atoms(Atoms1, Atoms2) :-
 
 generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMin, CoeffMax, VCMin, VCMax):-
 	few_predicates(Ps),
-	R1 is random(NPredMax), % # preds clause 1
-	R2 is random(NPredMax), % # preds clause 2
+	R1 is max(1,random(NPredMax)), % # preds clause 1
+	R2 is max(1,random(NPredMax)), % # preds clause 2
 	R11 is max(R1, NPredMin),
 	R22 is max(R2, NPredMin),
 	take_random(R11, Ps, Rs1),
@@ -71,6 +137,7 @@ generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMi
 	VC >= VCMin,
 	!.
 generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMin, CoeffMax, VCMin, VCMax):-generate_few_atoms(Atoms1, Atoms2, NPredMin, NPredMax, MinVars, MaxVars, CoeffMin, CoeffMax, VCMin, VCMax).
+
 
 class(C, Atoms1, Atoms2):-
 	(C == 1 -> generate_few_atoms(Atoms1, Atoms2, 5, 15, 1, 10, 1, 41472, 1, 60480) ; true),
@@ -109,6 +176,14 @@ class_6(Atoms1, Atoms2):-
 	Atoms1 =  [g('$VAR'(7),'$VAR'(2)),g('$VAR'(9),'$VAR'(2)),i('$VAR'(6),'$VAR'(4)),f('$VAR'(7)),i('$VAR'(2),'$VAR'(6)),f('$VAR'(10)),h('$VAR'(8),'$VAR'(5),'$VAR'(7)),g('$VAR'(5),'$VAR'(8)),h('$VAR'(8),'$VAR'(4),'$VAR'(8)),h('$VAR'(7),'$VAR'(7),'$VAR'(10)),h('$VAR'(10),'$VAR'(3),'$VAR'(6)),h('$VAR'(1),'$VAR'(8),'$VAR'(9)),g('$VAR'(10),'$VAR'(1)),g('$VAR'(10),'$VAR'(6)),g('$VAR'(1),'$VAR'(6)),i('$VAR'(8),'$VAR'(10)),i('$VAR'(1),'$VAR'(2)),h('$VAR'(3),'$VAR'(5),'$VAR'(8))],
 	Atoms2 =  [g('$VAR'(12),'$VAR'(13)),g('$VAR'(12),'$VAR'(11)),i('$VAR'(11),'$VAR'(16)),h('$VAR'(16),'$VAR'(14),'$VAR'(21)),h('$VAR'(16),'$VAR'(17),'$VAR'(14)),g('$VAR'(13),'$VAR'(15)),g('$VAR'(14),'$VAR'(16)),g('$VAR'(14),'$VAR'(16)),g('$VAR'(16),'$VAR'(13)),f('$VAR'(20)),g('$VAR'(16),'$VAR'(20)),f('$VAR'(20)),h('$VAR'(11),'$VAR'(14),'$VAR'(17)),h('$VAR'(16),'$VAR'(14),'$VAR'(21)),g('$VAR'(14),'$VAR'(13)),h('$VAR'(14),'$VAR'(11),'$VAR'(12)),i('$VAR'(20),'$VAR'(15)),f('$VAR'(16))].
 
+remove_random(0, _, []).
+remove_random(N, Xs, [X|Rs]):-
+	N > 0,
+	random:random_member(X, Xs),
+	N1 is N - 1,
+	select(X, Xs, NXs),
+	remove_random(N1, NXs, Rs).
+
 take_random(0, _, []).
 take_random(N, Xs, [X|Rs]):-
 	N > 0,
@@ -131,6 +206,9 @@ associate_vars_pred(Arity, MaxVar, ['$VAR'(I)|Vs]):-
 %%%
 replace('$VAR'(N1),Ren,T0):-
   member(('$VAR'(N1),T0),Ren),
+  !.
+replace(T1,Ren,T0):-
+  member((T1,T0),Ren),
   !.
 replace(Term1,Ren,Term0):-
   Term1 =..[F|Args],
