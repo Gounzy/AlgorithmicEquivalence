@@ -5,6 +5,7 @@
 		apply_subst/3,
 		zip/3,
 		build_matrix/3,
+		build_matrix_constraints/3,
 		extract_matrix_variables/3,
 		inverse_renaming/2,
 		no_collisions/1,
@@ -78,6 +79,54 @@ apply_subst_args(['$VAR'(I)|Args], Phi, ['$VAR'(J)|NArgs]):-
 	apply_subst_args(Args, Phi, NArgs).
 apply_subst_args([_|Args], Phi, NArgs):-
 	apply_subst_args(Args, Phi, NArgs).
+
+%%%%%%%%%
+build_matrix_constraints(C1, C2, Matrix):-
+	build_matrices_constraints(C1, C2, Matrix, _, C2, 0, 0),
+	!.
+
+build_matrices_constraints(C1, C2, MatrixSimilarities, MatrixScores, AllC2, N, M) :-
+	build_matrices_constraints(C1, C2, MatrixSimilarities, AllC2, N, M),
+	compute_scores(MatrixSimilarities, MatrixScores).
+
+build_matrices_constraints([], _, [], _, _, _).
+build_matrices_constraints([_|C1], [], MatrixSimilarities, AllC2, N, _):-
+	N1 is N + 1,
+	build_matrices(C1, AllC2, MatrixSimilarities, AllC2, N1, 0).
+build_matrices_constraints([C1|Constraints1], [C2|Constraints2], NMatrixSimilarities, AllC2, N, M):-
+		C1 =..[Symb|_],
+		C2 =..[Symb|_],
+		compat_constraints(C1,C2),
+		map_variables(C1, C2, Mapping1),
+		sort(Mapping1, Mapping),
+		consistent_mapping(Mapping, []),
+		!,
+		M1 is M + 1,
+		build_matrices_constraints([C1|Constraints1], Constraints2, MatrixSimilarities, AllC2, N, M1),
+		append([Symb/N/M/Mapping], MatrixSimilarities, NMatrixSimilarities).
+build_matrices_constraints(C1, [_|Constraints2], MatrixSimilarities, AllC2, N, M):-
+		M1 is M + 1,
+		build_matrices(C1, Constraints2, MatrixSimilarities, AllC2, N, M1).
+
+compat_constraints(A,B):- 
+	is_list(A), 
+	is_list(B), 
+	length(A,L),
+	length(B,L),
+	!. 
+compat_constraints('$VAR'(_), '$VAR'(_)). 
+compat_constraints([A|As], [B|Bs]):-
+	compat_constraints(A,B),
+	compat_constraints(As, Bs), 
+	!. 
+compat_constraints(A,B):- 
+	A =..[_|Args], 
+	B =..[_|ArgsB], 
+	length(Args, L), 
+	length(ArgsB, L),
+	compat_constraints(Args,ArgsB). 
+	%%%%%
+
 
 build_matrix(Atoms1, Atoms2, Matrix):-
 	build_matrices(Atoms1, Atoms2, Matrix, _, Atoms2, 0, 0),

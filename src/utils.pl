@@ -32,7 +32,8 @@
 	firsts/2,
 	seconds/2,
 	thirds/2,
-	sum/2
+	sum/2,
+	head/2
 ]).
 
 list_to_tuple([X|[]], (X)).
@@ -173,3 +174,5 @@ sum([], Acc, Acc).
 sum([X|Xs], Acc, S):-
 	NAcc is Acc + X,
 	sum(Xs, NAcc, S).
+
+head([H|_], H).

@@ -7,7 +7,18 @@
 :-use_module(mcg).
 :-use_module(exhaustive_renamings).
 :-use_module(generalization_abstraction).
+:-use_module(arguments_analysis).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+% Tests for arguments analysis
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Tests for k-swap 
+%%%%%%%%%%%%%%%%%%%%%%%%
 call_time(G,T) :-
    statistics(runtime,[T0|_]),
    G,

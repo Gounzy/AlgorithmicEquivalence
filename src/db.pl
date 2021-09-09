@@ -17,7 +17,9 @@
 	class_3/2,
 	class_4/2,
 	class_5/2,
-	class_6/2
+	class_6/2, 
+	var_counter/1,
+	generate_preds/2
 ]).
 
 :-use_module(utils).
@@ -33,6 +35,13 @@ different_vars(6).
 possible_predicates([f/1, g/2, h/3, i/4, m/4, n/3, o/2, p/1]).
 few_predicates([g/2, f/1, h/3]).
 max_nb_clauses(6).
+
+comparisons([<, >, =]). 
+functors([f/1, g/2]). %h/3, 1/0, 2/0, 3/0, 4/0]).
+preds([p/3, t/2, u/1, v/1, z/2], [p/3, t/2, u/1, v/1, z/2]). 
+max_nb_atoms_in_clause(10).
+max_nb_constraints_in_clause(10). 
+max_nb_clauses_in_pred(6). 
 
 %%%%
 init:-
@@ -270,3 +279,62 @@ construct_fr([V|Vs],N,Ren1,Ren0):-
   ;
   N1 is N+1,
   construct_fr(Vs,N1,[(V,'$VAR'(N))|Ren1],Ren0)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Preds generation for argument analysis testing %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+generate_preds(Clauses1, Clauses2):-
+	preds(Preds1, Preds2),
+	generate_pred(Preds1, Preds1, [], Clauses1), 
+	generate_pred(Preds2, Preds2, [], Clauses2).
+
+generate_pred([], _, CC, CC). 
+generate_pred([P|Preds], BPreds, CurrentClauses, Clauses):-
+	max_nb_clauses_in_pred(X),
+	NC is max(1,random(X)),
+	generate_clauses(P, NC, BPreds, ClausesGen),
+	append(CurrentClauses, ClausesGen, NewCurrentClauses), 
+	generate_pred(Preds, BPreds, NewCurrentClauses, Clauses). 
+
+generate_clauses(_, 0, _, []). 
+generate_clauses(P/A, NC, BPreds, [cl(Head, Constraints, Atoms)|Clauses]):-
+	generate_atoms(BPreds, Atoms), 
+	max_nb_constraints_in_clause(X),
+	NCons is max(1, random(X)), 
+	generate_constraints(NCons, Constraints),
+	generate_head(P/A, Head),
+	NC1 is NC - 1, 
+	generate_clauses(P/A, NC1, BPreds, Clauses). 
+
+generate_atoms(Preds, Atoms) :-
+	max_nb_atoms_in_clause(X),
+	NA is max(1,random(X)),
+	take_random(NA, Preds, Bs),
+	%init,
+	different_vars(Z),
+	%set_var_counter(Z),
+	associate_vars(Bs, Z, Atoms).
+
+generate_constraints(0, []). 
+generate_constraints(N, [Cons|Constraints]) :- 
+	comparisons(Cs),
+	random_member(Comp, Cs), 
+	%init, 
+	different_vars(Z), 
+	%set_var_counter(Z), 
+	NVar is random(Z),
+	functors(Fs),
+	random_member(F,Fs),
+	associate_vars([F], [Z], NF),
+	Cons =..[Comp|['$VAR'(NVar)|NF]],
+	N1 is N - 1,
+	generate_constraints(N1, Constraints).
+
+generate_head(P/A, Head):- 
+	intlist_vars(A, 0, Vars), 
+	Head =..[P|Vars].
+
+intlist_vars(A, A, []). 
+intlist_vars(A, Counter, ['$VAR'(Counter)|Vars]):-
+	NCounter is Counter + 1, 
+	intlist_vars(A, NCounter, Vars). 

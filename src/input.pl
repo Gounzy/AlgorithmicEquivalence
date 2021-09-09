@@ -3,7 +3,7 @@
 
 :- module(input,[load_file/2]).
 
-:-use_module(utils).
+:- use_module(utils).
 
 % Charge le fichier F et retient toutes ses clauses
 load_file(F, Clauses) :-

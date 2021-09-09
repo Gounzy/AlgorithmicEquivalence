@@ -1,0 +1,43 @@
+% Type inference system (designed by M. Bruynooghe and J. Gallagher)
+% Version 1.0 created by jpg on 12/04/2005
+% (c) Roskilde University
+ 
+Type inference tool
+===================
+Derives a polymorphic well-typing for a given program.
+
+Runs in SICStus Prolog or Ciao-Prolog (at least)
+
+Usage
+=====
+
+% prolog
+
+?- use_module(types).
+
+?- types(+Filename).
+
+To run a number of tests, type
+
+?- test.
+
+
+A command line version is produced by compiling using the Ciao compiler
+
+% ciaoc types.pl
+
+Then run the analyser as follows.
+
+% types 'myfile.pl'
+
+
+- Output (normalised types and signatures) is printed to standard output.  
+
+
+
+
+
+(c) Roskilde University, October 2004.
+
+Algorithm designed by Maurice Bruynooghe and John Gallagher
+Contact JG (jpg@ruc.dk) to report bugs or suggest improvements.

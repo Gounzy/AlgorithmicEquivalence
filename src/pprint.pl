@@ -1,8 +1,8 @@
 %% Affichage de clauses / de sliceparts
 
-:- module(pprint,[pp_print_clauses/1, pp_print_slice_parts/2]).
+:- module(pprint,[pp_print_clauses/1, pp_print_slice_parts/2, pp_print_arg_tuple/1]).
 
-:-use_module(utils).
+:- use_module(utils).
 
 pp_print_slice_parts([], []).
 pp_print_slice_parts([Vars|VarsList], [Clauses|ClausesList]):-
@@ -51,3 +51,17 @@ print_indent(N):-
 	NN is N - 1,
 	write(' '),
 	print_indent(NN).
+
+pp_print_arg_tuple([]):- format('~n'). 
+pp_print_arg_tuple([Pred->Var->Tuple|AT]):- 
+	format('~n ~w ~t ~w ~t ---> <', [Pred, Var]),
+	pp_print_tuple(Tuple), 
+	format('>'),
+	pp_print_arg_tuple(AT). 
+
+pp_print_tuple([]). 
+pp_print_tuple([F-Val|Tuple]):-
+	format('(~w:~w)', [F, Val]),
+	(Tuple \= [] -> format(', ') ; true),
+	pp_print_tuple(Tuple). 
+	
